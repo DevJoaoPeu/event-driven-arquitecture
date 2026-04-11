@@ -2,15 +2,15 @@ POST http://localhost:3000/orders
 Content-Type: application/json
 
 {
-    "customerId": 1,
+    "customerId": "1",
     "itens": [
         {
-            "productId": 1,
+            "productId": "1",
             "quantity": 1,
             "unitPrice": 100
         },
         {
-            "productId": 2,
+            "productId": "2",
             "quantity": 1,
             "unitPrice": 50
         }
@@ -20,7 +20,7 @@ Content-Type: application/json
         "installment": 1
     },
     "delivery": {
-        "addressId": 1
+        "addressId": "1"
     }
 }
 
