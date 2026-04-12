@@ -1,12 +1,11 @@
-import { Controller, Get } from '@nestjs/common';
-import { PaymentService } from './payment.service';
+import { Controller } from '@nestjs/common';
+import { EventPattern } from '@nestjs/microservices';
 
 @Controller()
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) {}
 
-  @Get()
-  save() {
-    return this.paymentService.save();
+  @EventPattern('order.created')
+  payment(order: any) {
+    console.log(order)
   }
 }
