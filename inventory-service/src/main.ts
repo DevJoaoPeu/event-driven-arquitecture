@@ -8,6 +8,9 @@ async function bootstrap() {
   const configService = appContext.get(ConfigService);
 
   const rabbitUrl: string = configService.getOrThrow<string>('RABBITMQ_URL');
+  const routingKey: string = configService.getOrThrow<string>(
+    'RABBITMQ_ORDER_ROUTING_KEY',
+  );
 
   const app = await NestFactory.createMicroservice(AppModule, {
     transport: Transport.RMQ,
@@ -16,7 +19,7 @@ async function bootstrap() {
       queue: 'inventory.order.created',
       exchange: 'orders.exchange',
       exchangeType: 'topic',
-      routingKey: 'order.created',
+      routingKey,
       queueOptions: {
         durable: true,
       },
