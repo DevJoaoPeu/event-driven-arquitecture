@@ -8,6 +8,6 @@ import { InventoryConsumer } from './inventory/inventory.consumer';
       isGlobal: true,
     }),
   ],
-  providers: [InventoryConsumer],
+  controllers: [InventoryConsumer],
 })
 export class AppModule {}

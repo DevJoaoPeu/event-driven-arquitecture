@@ -8,6 +8,6 @@ import { PaymentConsumer } from './payments/payment.consumer';
       isGlobal: true,
     }),
   ],
-  providers: [PaymentConsumer],
+  controllers: [PaymentConsumer],
 })
 export class AppModule {}
