@@ -1,20 +1,24 @@
 # Order Service
 
-Microsservico responsavel por receber pedidos via REST API e publicar eventos no RabbitMQ para processamento assincrono.
+Microsservico responsavel por receber pedidos via REST API e publicar eventos no RabbitMQ para consumo assincrono pelos demais servicos.
 
 ## Papel na arquitetura
 
-O Order Service atua como **Producer** na arquitetura event-driven. Ao receber um pedido, emite o evento `order.created` para a fila `orders_queue` no RabbitMQ, que sera consumido pelo Payment Service.
+O Order Service atua como **Producer**. Ao receber um pedido, publica o evento `order.created` no **topic exchange** `orders.exchange`, que faz fan-out para as filas `payment.order.created` e `inventory.order.created`.
 
 ```
-Client ──POST /orders──> Order Service ──order.created──> RabbitMQ (orders_queue)
+Client ──POST /orders──> Order Service ──order.created──> orders.exchange (topic)
+                                                          ├──> payment.order.created
+                                                          └──> inventory.order.created
 ```
+
+A publicacao e feita por um `RabbitMQProvider` customizado usando `amqplib` diretamente, em vez do `ClientProxy` do `@nestjs/microservices` — isso permite controle explicito sobre a criacao do exchange e o formato do envelope `{ pattern, data }`.
 
 ## Tecnologias
 
 - NestJS 11
-- @nestjs/microservices (Transport RMQ)
-- class-validator / class-transformer
+- `amqplib` (driver AMQP nativo)
+- class-validator / class-transformer (validacao do payload)
 - Docker Compose (RabbitMQ)
 
 ## Configuracao
@@ -22,10 +26,12 @@ Client ──POST /orders──> Order Service ──order.created──> Rabbit
 Crie um arquivo `.env` na raiz do order-service:
 
 ```env
-RABBITMQ_URL=amqp://usuario:senha@localhost:5672
-RABBITMQ_DEFAULT_USER=usuario
-RABBITMQ_DEFAULT_PASS=senha
+RABBITMQ_DEFAULT_USER=admin
+RABBITMQ_DEFAULT_PASS=admin
+RABBITMQ_URL=amqp://admin:admin@localhost:5672
 ```
+
+> As credenciais de `RABBITMQ_DEFAULT_USER` / `RABBITMQ_DEFAULT_PASS` sao consumidas pelo container do RabbitMQ via `docker-compose.yml`.
 
 ## Como executar
 
@@ -44,7 +50,7 @@ npm run start:dev
 
 ### POST /orders
 
-Cria um novo pedido e publica o evento no RabbitMQ.
+Cria um novo pedido e publica o evento `order.created`.
 
 **Request body:**
 
@@ -68,7 +74,7 @@ Cria um novo pedido e publica o evento no RabbitMQ.
 }
 ```
 
-**Campos de payment.method:**
+**Campos de `payment.method`:**
 
 | Valor | Descricao |
 |-------|-----------|
@@ -77,20 +83,38 @@ Cria um novo pedido e publica o evento no RabbitMQ.
 | `CASH` | Dinheiro |
 | `PIX` | Pix |
 
+Exemplos prontos estao em `../request.http`.
+
 ## Estrutura
 
 ```
 src/
-├── app.module.ts                  # Modulo raiz (ConfigModule global)
-├── main.ts                        # Bootstrap com ValidationPipe
-└── order/
-    ├── order.module.ts            # Registro do ClientsModule (RabbitMQ)
-    ├── order.controller.ts        # Endpoint POST /orders
-    ├── order.service.ts           # Emissao do evento order.created
-    ├── dto/
-    │   └── create-order.dto.ts    # Validacao do payload
-    └── enuns/
-        └── payment-method.enum.ts # Enum dos metodos de pagamento
+├── app.module.ts                  # Modulo raiz (ConfigModule global, OrderModule)
+├── main.ts                        # Bootstrap HTTP com ValidationPipe
+├── order/
+│   ├── order.module.ts            # Declara controller, service e RabbitMQProvider
+│   ├── order.controller.ts        # Endpoint POST /orders
+│   ├── order.service.ts           # Invoca RabbitMQProvider.publish(...)
+│   ├── dto/
+│   │   └── create-order.dto.ts    # Validacao do payload
+│   └── enuns/
+│       └── payment-method.enum.ts # Enum dos metodos de pagamento
+└── providers/
+    └── RabbitMQProvider.ts        # Conecta ao broker, declara o topic exchange e publica
+```
+
+## Publicacao de eventos
+
+`RabbitMQProvider` declara o exchange `orders.exchange` (tipo `topic`, `durable: true`) no `onModuleInit` e expoe o metodo:
+
+```ts
+publish(exchange: string, routingKey: string, message: unknown)
+```
+
+A mensagem e enviada no envelope compativel com `@nestjs/microservices`:
+
+```json
+{ "pattern": "order.created", "data": { ... } }
 ```
 
 ## Scripts
