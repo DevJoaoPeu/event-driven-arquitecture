@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { RabbitMQProvider } from 'src/providers/RabbitMQProvider';
+import { EventPublisher } from 'src/shared/messaging/event-publisher';
 
 @Injectable()
 export class OrderService {
     constructor(
-        private readonly rabbitMqProvider: RabbitMQProvider
+        private readonly eventPublisher: EventPublisher
     ) { }
 
     save(order: CreateOrderDto) {
-        this.rabbitMqProvider.publish('orders.exchange', 'order.created', order)
+        this.eventPublisher.publish('order.created', order)
         return order
     }
 }

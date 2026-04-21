@@ -1,36 +1,40 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as amqp from 'amqplib';
+import { EventPublisher } from 'src/shared/messaging/event-publisher';
 
 @Injectable()
-export class RabbitMQProvider implements OnModuleInit {
+export class RabbitMQProvider extends EventPublisher implements OnModuleInit {
   private connection: amqp.ChannelModel;
   private channel: amqp.Channel;
+  private readonly exchange = 'orders.exchange';
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {
+    super();
+  }
 
   async onModuleInit() {
     const connectionUrl = this.configService.getOrThrow<string>('RABBITMQ_URL');
     this.connection = await amqp.connect(connectionUrl);
 
-    this.channel = await this.connection.createChannel()
-    await this.channel.assertExchange('orders.exchange', 'topic', {
-      durable: true
-    })
+    this.channel = await this.connection.createChannel();
+    await this.channel.assertExchange(this.exchange, 'topic', {
+      durable: true,
+    });
 
-    console.log('### RabbitMQ connection established')
+    console.log('### RabbitMQ connection established');
   }
 
-  publish(exchange: string, routingKey: string, message: unknown) {
-    const newMessage = {
+  publish(routingKey: string, data: unknown) {
+    const message = {
       pattern: routingKey,
-      data: message
-    }
+      data,
+    };
 
     this.channel.publish(
-      exchange,
+      this.exchange,
       routingKey,
-      Buffer.from(JSON.stringify(newMessage))
-    )
+      Buffer.from(JSON.stringify(message)),
+    );
   }
 }

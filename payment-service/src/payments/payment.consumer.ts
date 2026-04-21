@@ -1,11 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { EventPattern } from '@nestjs/microservices';
 import { CreateOrderDto } from 'src/shared/dtos/create-order.dto.';
+import { PaymentService } from './payment.service';
 
-@Injectable()
+@Controller()
 export class PaymentConsumer {
+  constructor(private readonly paymentService: PaymentService) {}
+
   @EventPattern('order.created')
   payment(order: CreateOrderDto) {
-    console.log(order);
+    this.paymentService.process(order);
   }
 }
