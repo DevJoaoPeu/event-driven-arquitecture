@@ -8,7 +8,7 @@ export class PaymentConsumer {
   constructor(private readonly paymentService: PaymentService) {}
 
   @EventPattern('order.created')
-  payment(order: CreateOrderDto) {
-    this.paymentService.process(order);
+  async payment(order: CreateOrderDto) {
+    await this.paymentService.process(order);
   }
 }

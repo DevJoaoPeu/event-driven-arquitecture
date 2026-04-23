@@ -5,6 +5,7 @@ import { PaymentGateway } from './payment.gateway';
 @Injectable()
 export class KiwifyGateway extends PaymentGateway {
   paymentProcess(order: CreateOrderDto) {
+    throw new Error('Error process payment')
     console.log(order);
   }
 }
