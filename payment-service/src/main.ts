@@ -22,6 +22,8 @@ async function bootstrap() {
       routingKey,
       queueOptions: {
         durable: true,
+        deadLetterExchange: 'payments.dlx',
+        deadLetterRoutingKey: 'payments.failed',
       },
       noAck: false,
     },
