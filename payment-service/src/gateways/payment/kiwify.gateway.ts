@@ -4,8 +4,10 @@ import { PaymentGateway } from './payment.gateway';
 
 @Injectable()
 export class KiwifyGateway extends PaymentGateway {
-  paymentProcess(order: CreateOrderDto) {
-    throw new Error('Error process payment')
+  async paymentProcess(order: CreateOrderDto) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    throw new Error('Error process payment');
     console.log(order);
   }
 }
