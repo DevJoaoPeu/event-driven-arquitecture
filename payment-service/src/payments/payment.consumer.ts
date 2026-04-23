@@ -1,5 +1,5 @@
 import { Controller } from '@nestjs/common';
-import { Ctx, EventPattern, RmqContext } from '@nestjs/microservices';
+import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { CreateOrderDto } from 'src/shared/dtos/create-order.dto.';
 import { PaymentService } from './payment.service';
 import { Channel, Message } from 'amqplib';
@@ -9,7 +9,7 @@ export class PaymentConsumer {
   constructor(private readonly paymentService: PaymentService) {}
 
   @EventPattern('order.created')
-  async payment(order: CreateOrderDto, @Ctx context: RmqContext) {
+  async payment(@Payload() order: CreateOrderDto, @Ctx() context: RmqContext) {
     const channel = context.getChannelRef() as Channel;
     const originalMessage = context.getMessage() as Message;
 
@@ -19,7 +19,7 @@ export class PaymentConsumer {
     } catch (error) {
       console.log(error);
 
-      channel.nack(originalMessage);
+      channel.nack(originalMessage, false, false);
     }
   }
 }
