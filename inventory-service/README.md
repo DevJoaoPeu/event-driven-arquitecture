@@ -43,7 +43,8 @@ src/
 ├── app.module.ts                        # ConfigModule global + registro do consumer
 ├── main.ts                              # Bootstrap via createMicroservice (Transport.RMQ)
 ├── inventory/
-│   └── inventory.consumer.ts            # @EventPattern('order.created')
+│   ├── inventory.consumer.ts            # @EventPattern('order.created') — delega para o service
+│   └── inventory.service.ts             # Caso de uso: reservar estoque do pedido
 └── shared/
     ├── dtos/
     │   └── create-order.dto..ts         # Shape do evento recebido
@@ -58,8 +59,12 @@ O consumer e declarado como **controller** (requisito do NestJS microservices �
 ```ts
 @Controller() // registrado em app.module.ts via `controllers: [...]`
 export class InventoryConsumer {
+  constructor(private readonly inventoryService: InventoryService) {}
+
   @EventPattern('order.created')
-  inventory(order: CreateOrderDto) { ... }
+  inventory(order: CreateOrderDto) {
+    this.inventoryService.reserve(order);
+  }
 }
 ```
 

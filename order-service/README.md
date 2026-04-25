@@ -12,7 +12,7 @@ Client ──POST /orders──> Order Service ──order.created──> orders
                                                           └──> inventory.order.created
 ```
 
-A publicacao e feita por um `RabbitMQProvider` customizado usando `amqplib` diretamente, em vez do `ClientProxy` do `@nestjs/microservices` — isso permite controle explicito sobre a criacao do exchange e o formato do envelope `{ pattern, data }`.
+A publicacao e feita atraves da abstracao `EventPublisher` (DIP), implementada por um `RabbitMQProvider` customizado que usa `amqplib` diretamente em vez do `ClientProxy` do `@nestjs/microservices` — isso permite controle explicito sobre a criacao do exchange e o formato do envelope `{ pattern, data }`. O `OrderService` depende da abstracao, nao do provider concreto, entao trocar de broker e uma mudanca de uma linha no modulo.
 
 ## Tecnologias
 
@@ -89,29 +89,43 @@ Exemplos prontos estao em `../request.http`.
 
 ```
 src/
-├── app.module.ts                  # Modulo raiz (ConfigModule global, OrderModule)
-├── main.ts                        # Bootstrap HTTP com ValidationPipe
+├── app.module.ts                       # Modulo raiz (ConfigModule global, OrderModule)
+├── main.ts                             # Bootstrap HTTP com ValidationPipe
 ├── order/
-│   ├── order.module.ts            # Declara controller, service e RabbitMQProvider
-│   ├── order.controller.ts        # Endpoint POST /orders
-│   ├── order.service.ts           # Invoca RabbitMQProvider.publish(...)
+│   ├── order.module.ts                 # Declara controller, service e bind EventPublisher → RabbitMQProvider
+│   ├── order.controller.ts             # Endpoint POST /orders
+│   ├── order.service.ts                # Invoca eventPublisher.publish(...)
 │   ├── dto/
-│   │   └── create-order.dto.ts    # Validacao do payload
+│   │   └── create-order.dto.ts         # Validacao do payload
 │   └── enuns/
-│       └── payment-method.enum.ts # Enum dos metodos de pagamento
-└── providers/
-    └── RabbitMQProvider.ts        # Conecta ao broker, declara o topic exchange e publica
+│       └── payment-method.enum.ts      # Enum dos metodos de pagamento
+├── providers/
+│   └── RabbitMQProvider.ts             # Implementacao concreta — declara o topic exchange e publica
+└── shared/
+    └── messaging/
+        └── event-publisher.ts          # Abstracao EventPublisher (DIP)
 ```
 
 ## Publicacao de eventos
 
-`RabbitMQProvider` declara o exchange `orders.exchange` (tipo `topic`, `durable: true`) no `onModuleInit` e expoe o metodo:
+`OrderService` depende apenas da abstracao `EventPublisher`:
 
 ```ts
-publish(exchange: string, routingKey: string, message: unknown)
+export abstract class EventPublisher {
+  abstract publish(routingKey: string, data: unknown): void;
+}
 ```
 
-A mensagem e enviada no envelope compativel com `@nestjs/microservices`:
+A injecao no `OrderModule` aponta para a implementacao concreta:
+
+```ts
+providers: [
+  OrderService,
+  { provide: EventPublisher, useClass: RabbitMQProvider },
+]
+```
+
+`RabbitMQProvider` declara o exchange `orders.exchange` (tipo `topic`, `durable: true`) no `onModuleInit` e implementa `publish` enviando o envelope compativel com `@nestjs/microservices`:
 
 ```json
 { "pattern": "order.created", "data": { ... } }
